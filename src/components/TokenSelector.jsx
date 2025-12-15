@@ -13,9 +13,9 @@ function TokenSelector({ onSelectToken, close , tokenList}) {
 
         {tokenss.map((token) => (
           <div
-            key={token.symbol}
+            key={token}
             onClick={() => {
-              onSelectToken(token.symbol) ;
+              onSelectToken(token) ;
               close();
             }}
             className="flex items-center gap-3 p-2 cursor-pointer hover:bg-gray-100 rounded-xl"

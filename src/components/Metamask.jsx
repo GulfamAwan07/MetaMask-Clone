@@ -23,93 +23,79 @@ import { IoShieldCheckmarkOutline } from "react-icons/io5";
 import { IoIosGitNetwork } from "react-icons/io";
 import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
-import {switchToBnb} from './bsc';
+import { switchToBnb } from "./bsc";
+
 function Metamask() {
   const [menu, showMenu] = useState(false);
   const [openSelector, setOpenSelector] = useState(false);
-  const [selectedItems, setSelectedItems] = useState("Sepolia");
+  const [selectedItems, setSelectedItems] = useState(tokenss[0]); // Initialize with first token from tokenss
   const [amount, setAmount] = useState();
   const Public_Address = "0x33570eB7525d6e9375FbDbE9BdB8f3437435f860";
-  // const initialAccount = [
-  //   { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
-  //   { id: "2", name: "Account 2", address: "abc0066", balance: 0.0 },
-  // ];
-//const [balances, setBalances] = useState({});
 
-  const [account, setAccount] = useState([
-    // { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
-  ]);
-
+  const [account, setAccount] = useState([]);
   const [activeAccount, setActiveAccount] = useState("");
-
   const [accDropDown, setAccDropDown] = useState(false);
-  //const [account, setAccount] = useState(initialAccount);
-  //const [activeAccount, setActiveAccount] = useState(initialAccount[0].name);
-
   const [liveEthBalance, setLiveEthBalance] = useState(0);
 
-  // const [balances, setBalances] = useState({
-  //   Public_Address : 177.0,
-  //   abc0066: 23.0,
-  // });
+  // Load accounts from localStorage
+  useEffect(() => {
+    try {
+      const savedAccounts = localStorage.getItem("metamask-accounts");
+      if (savedAccounts) {
+        const parsedAccounts = JSON.parse(savedAccounts);
+        setAccount(parsedAccounts);
 
-
-
-
-useEffect(() => {
-  try {
-    const savedAccounts = localStorage.getItem('metamask-accounts');
-    if (savedAccounts) {
-      const parsedAccounts = JSON.parse(savedAccounts);
-      setAccount(parsedAccounts);
-      
-      const savedActiveAccount = localStorage.getItem('metamask-active-account');
-      if (savedActiveAccount) {
-        setActiveAccount(savedActiveAccount);
-      } else if (parsedAccounts.length > 0) {
-        setActiveAccount(parsedAccounts[0].name);
+        const savedActiveAccount = localStorage.getItem(
+          "metamask-active-account"
+        );
+        if (savedActiveAccount) {
+          setActiveAccount(savedActiveAccount);
+        } else if (parsedAccounts.length > 0) {
+          setActiveAccount(parsedAccounts[0].name);
+        }
+      } else {
+        const defaultAccount = [
+          { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
+        ];
+        setAccount(defaultAccount);
+        setActiveAccount(defaultAccount[0].name);
+        localStorage.setItem(
+          "metamask-accounts",
+          JSON.stringify(defaultAccount)
+        );
+        localStorage.setItem("metamask-active-account", defaultAccount[0].name);
       }
-    } else {
+    } catch (error) {
+      console.error("Error loading accounts:", error);
       const defaultAccount = [
-        { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 }
+        { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
       ];
       setAccount(defaultAccount);
       setActiveAccount(defaultAccount[0].name);
-      localStorage.setItem('metamask-accounts', JSON.stringify(defaultAccount));
-      localStorage.setItem('metamask-active-account', defaultAccount[0].name);
     }
-  } catch (error) {
-    console.error('Error loading accounts:', error);
-    const defaultAccount = [
-      { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 }
-    ];
-    setAccount(defaultAccount);
-    setActiveAccount(defaultAccount[0].name);
-  }
-}, []);
+  }, []);
 
-useEffect(() => {
-  if (account.length > 0) {
-    try {
-      localStorage.setItem('metamask-accounts', JSON.stringify(account));
-    } catch (error) {
-      console.error('Error saving accounts:', error);
+  // Save accounts to localStorage
+  useEffect(() => {
+    if (account.length > 0) {
+      try {
+        localStorage.setItem("metamask-accounts", JSON.stringify(account));
+      } catch (error) {
+        console.error("Error saving accounts:", error);
+      }
     }
-  }
-}, [account]);
+  }, [account]);
 
-useEffect(() => {
-  if (activeAccount) {
-    try {
-      localStorage.setItem('metamask-active-account', activeAccount);
-    } catch (error) {
-      console.error('Error saving active account:', error);
+  // Save active account to localStorage
+  useEffect(() => {
+    if (activeAccount) {
+      try {
+        localStorage.setItem("metamask-active-account", activeAccount);
+      } catch (error) {
+        console.error("Error saving active account:", error);
+      }
     }
-  }
-}, [activeAccount]);
-
-
-
+  }, [activeAccount]);
 
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -127,42 +113,41 @@ useEffect(() => {
     return activeAccObj ? activeAccObj.address : null;
   };
 
+  const fetchCurrentBalance = useCallback(
+    async (address) => {
+      const currentActiveAddress = getAddress();
 
-const fetchCurrentBalance = useCallback(     //dbg
-  async (address) => {
-    const currentActiveAddress = getAddress(); 
-    
-    console.log(" Fetching balance for:", address);     
-    
-    if (address && address.startsWith("0x")) {
-      const balance = await getEthBalance(address);
-      console.log("Balance fetched:", balance);
-      
-    
-      if (address.toLowerCase() === currentActiveAddress.toLowerCase()) { 
-        console.log(" Previous balance:", liveEthBalance);
-        setLiveEthBalance(balance);
-        console.log(" New balance set to:", balance);
+      console.log("Fetching balance for:", address);
+
+      if (address && address.startsWith("0x")) {
+        const balance = await getEthBalance(address);
+        console.log("Balance fetched:", balance);
+
+        if (address.toLowerCase() === currentActiveAddress.toLowerCase()) {
+          console.log("Previous balance:", liveEthBalance);
+          setLiveEthBalance(balance);
+          console.log("New balance set to:", balance);
+        }
+         else {
+          console.warn(
+            `STALE FETCH AVOIDED: Result for ${address} ignored. Active address is now ${currentActiveAddress}.`
+          );
+        }
       } else {
-        console.warn(`STALE FETCH AVOIDED: Result for ${address} ignored. Active address is now ${currentActiveAddress}.`);
+        console.log("Invalid address");
+        setLiveEthBalance(0);
       }
-    } else {
-      console.log(" Invalid address");
-      setLiveEthBalance(0);
-    }
-  },
-  [setLiveEthBalance, getAddress, liveEthBalance] 
-);
+    },
+    [liveEthBalance]
+  );
 
   useEffect(() => {
     const address = getAddress();
     fetchCurrentBalance(address);
 
     const intervalId = setInterval(() => fetchCurrentBalance(address), 3000);
-        
+
     return () => clearInterval(intervalId);
-
-
   }, [activeAccount, fetchCurrentBalance]);
 
   const accountToggle = () => {
@@ -175,28 +160,28 @@ const fetchCurrentBalance = useCallback(     //dbg
   };
 
   const addAccount = () => {
-  const newWallet = ethers.Wallet.createRandom();
-  const newId = (account.length + 1).toString();
-  const newName = `Account ${newId}`;
-  const newAddress = newWallet.address;
+    const newWallet = ethers.Wallet.createRandom();
+    const newId = (account.length + 1).toString();
+    const newName = `Account ${newId}`;
+    const newAddress = newWallet.address;
 
-  toast.info(
-    `New Account Created, Copy Private key to import : ${newWallet.privateKey}`,
-  );
+    toast.info(
+      `New Account Created, Copy Private key to import : ${newWallet.privateKey}`
+    );
 
-  setAccount((prevAccount) => [
-    ...prevAccount,
-    {
-      id: newId,
-      address: newAddress,
-      name: newName,
-      balance: 0.0, 
-    },
-  ]);
+    setAccount((prevAccount) => [
+      ...prevAccount,
+      {
+        id: newId,
+        address: newAddress,
+        name: newName,
+        balance: 0.0,
+      },
+    ]);
 
-  setActiveAccount(newName);
-  setAccDropDown(false);
-};
+    setActiveAccount(newName);
+    setAccDropDown(false);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -207,154 +192,159 @@ const fetchCurrentBalance = useCallback(     //dbg
   };
 
   const handleSend = async () => {
-  const senderAddress = getAddress();
-  const receiptAddress = transaction.receipt;
-  const amountFloat = parseFloat(transaction.amount);
+    const senderAddress = getAddress();
+    const receiptAddress = transaction.receipt;
+    const amountFloat = parseFloat(transaction.amount);
 
-  if (
-    !senderAddress ||
-    !receiptAddress ||
-    amountFloat <= 0 ||
-    isNaN(amountFloat)
-  ) {
-    toast.error("Invalid Sender, Recipient, or Amount.");
-    return;
-  }
+    if (
+      !senderAddress ||
+      !receiptAddress ||
+      amountFloat <= 0 ||
+      isNaN(amountFloat)
+    ) {
+      toast.error("Invalid Sender, Recipient, or Amount.");
+      return;
+    }
 
-  if (liveEthBalance < amountFloat) {
-    toast.error(
-      "Insufficient ETH balance for the transfer amount (on Sepolia)."
-    );
-    return;
-  }
+    if (liveEthBalance < amountFloat) {
+      toast.error(
+        "Insufficient ETH balance for the transfer amount (on Sepolia)."
+      );
+      return;
+    }
 
-  toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
+    toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
 
-  const result = await executeTransfer(receiptAddress, amountFloat);
+    const result = await executeTransfer(receiptAddress, amountFloat);
 
-  if (result.success) {
-    toast.success(
-      `Transaction confirmed! Hash: ${result.hash}. Live balance updating...`
-    );
-     setTimeout(()=>{
-      fetchCurrentBalance(senderAddress)
-     },3000)
-  } else {
-    toast.error(
-      `Transaction failed: ${result.error || "Check console for details."}`
-    );
-  }
+    if (result.success) {
+      toast.success(
+        `Transaction confirmed! Hash: ${result.hash}. Live balance updating...`
+      );
+      setTimeout(() => {
+        fetchCurrentBalance(senderAddress);
+      }, 3000);
+    } else {
+      toast.error(
+        `Transaction failed: ${result.error || "Check console for details."}`
+      );
+    }
 
-  setShowSendModal(false);
-  setTransaction({ receipt: "", amount: "", token: "ETH" });
-};
-
-  const handleStimulateReceive = (senderInput, amountValue) => {
-  const activeAddress = getAddress();
-  const amountFloat = parseFloat(amountValue);
-  const recipientAddress = activeAddress;
-
-  if (!activeAddress) {
-    toast.error("No active account selected.");
-    return;
-  }
-  if (amountFloat <= 0 || isNaN(amountFloat)) {
-    toast.error("Invalid Amount. Please enter a positive number.");
-    return;
-  }
-  if (!senderInput || senderInput.trim() === "") {
-    toast.error("Please enter a sender address.");
-    return;
-  }
-
-  if (!senderInput.startsWith("0x") || senderInput.length !== 42) {
-    toast.error("Invalid Ethereum address format.");
-    return;
-  }
-
-  if (senderInput.toLowerCase() === recipientAddress.toLowerCase()) {
-    toast.error(
-      "Cannot receive from your own account. Please enter a different sender address."
-    );
-    return;
-  }
-
-  const newRequest = {
-    id: Date.now(),
-    sender: senderInput,
-    recipient: recipientAddress,
-    amount: amountFloat,
-    status: "staged",
+    setShowSendModal(false);
+    setTransaction({ receipt: "", amount: "", token: "ETH" });
   };
 
-  setStaggedTransfer((prevQueue) => [...prevQueue, newRequest]);
-  toast.info(
-    `Request staged! Switch to the account with address ${senderInput} to approve and send the transaction.`
-  );
-  setShowReceiveModal(false);
-};
+  const handleStimulateReceive = (senderInput, amountValue) => {
+    const activeAddress = getAddress();
+    const amountFloat = parseFloat(amountValue);
+    const recipientAddress = activeAddress;
 
+    if (!activeAddress) {
+      toast.error("No active account selected.");
+      return;
+    }
+    if (amountFloat <= 0 || isNaN(amountFloat)) {
+      toast.error("Invalid Amount. Please enter a positive number.");
+      return;
+    }
+    if (!senderInput || senderInput.trim() === "") {
+      toast.error("Please enter a sender address.");
+      return;
+    }
 
+    if (!senderInput.startsWith("0x") || senderInput.length !== 42) {
+      toast.error("Invalid Ethereum address format.");
+      return;
+    }
 
+    if (senderInput.toLowerCase() === recipientAddress.toLowerCase()) {
+      toast.error(
+        "Cannot receive from your own account. Please enter a different sender address."
+      );
+      return;
+    }
 
+    const newRequest = {
+      id: Date.now(),
+      sender: senderInput,
+      recipient: recipientAddress,
+      amount: amountFloat,
+      status: "staged",
+    };
 
- const handleFinalizeTransfer = async (
-  txId,
-  senderAddress,
-  recipientAddress,
-  txAmount
-) => {
-  const finalAmount = parseFloat(txAmount);
-
-  if (!recipientAddress) {
-    toast.error("Recipient address missing.");
-    return;
-  }
-  if (isNaN(finalAmount) || finalAmount <= 0) {
-    toast.error("Invalid transfer amount.");
-    return;
-  }
-
-  if (liveEthBalance < finalAmount) {
-    toast.error(
-      `Insufficient ETH balance. You have ${liveEthBalance} ETH but need ${finalAmount} ETH.`
+    setStaggedTransfer((prevQueue) => [...prevQueue, newRequest]);
+    toast.info(
+      `Request staged! Switch to the account with address ${senderInput} to approve and send the transaction.`
     );
-    return;
-  }
+    setShowReceiveModal(false);
+  };
 
-  toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
+  const handleFinalizeTransfer = async (
+    txId,
+    senderAddress,
+    recipientAddress,
+    txAmount
+  ) => {
+    const finalAmount = parseFloat(txAmount);
 
-  const result = await executeTransfer(recipientAddress, finalAmount);
+    if (!recipientAddress) {
+      toast.error("Recipient address missing.");
+      return;
+    }
+    if (isNaN(finalAmount) || finalAmount <= 0) {
+      toast.error("Invalid transfer amount.");
+      return;
+    }
 
-  if (result.success) {
-    toast.success(
-      `Transaction confirmed! Hash: ${result.hash}. Balance updating...`
-    );
-    
-    setStaggedTransfer((prevQueue) =>
-      prevQueue.map((tx) =>
-        tx.id === txId ? { ...tx, status: "received" } : tx
-      )
-    );
-      settimeout(()=>{
-        fetchCurrentBalance(senderAddress)
+    if (liveEthBalance < finalAmount) {
+      toast.error(
+        `Insufficient ETH balance. You have ${liveEthBalance} ETH but need ${finalAmount} ETH.`
+      );
+      return;
+    }
+
+    toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
+
+    const result = await executeTransfer(recipientAddress, finalAmount);
+
+    if (result.success) {
+      toast.success(
+        `Transaction confirmed! Hash: ${result.hash}. Balance updating...`
+      );
+
+      setStaggedTransfer((prevQueue) =>
+        prevQueue.map((tx) =>
+          tx.id === txId ? { ...tx, status: "received" } : tx
+        )
+      );
+      setTimeout(() => {
+        fetchCurrentBalance(senderAddress);
       }, 3000);
-  } else {
-    toast.error(
-      `Transaction failed: ${result.error || "Check console for details."}`
-    );
-  }
-};
+    } else {
+      toast.error(
+        `Transaction failed: ${result.error || "Check console for details."}`
+      );
+    }
+  };
 
   const handleAcceptReceivedFunds = (txId) => {
     setStaggedTransfer((prevQueue) => prevQueue.filter((tx) => tx.id !== txId));
     toast.info("Funds accepted. Transaction history updated.");
   };
 
-  const handleTokenSelection = (tokenSymbol) => {
-    setSelectedItems(tokenSymbol);
+  const handleTokenSelection = (token) => {
+    setSelectedItems(token);
     setOpenSelector(false);
+
+    if (token.symbol === "BNB") {
+      switchToBnb();
+    }
+
+    if (token.chain === "BSC") {
+      switchToBnb();
+    }
   };
+
   const menuBar = () => {
     showMenu((prevMenuState) => !prevMenuState);
   };
@@ -363,7 +353,7 @@ const fetchCurrentBalance = useCallback(     //dbg
     setOpenSelector(false);
   };
 
-  const tokens = [
+  const displayTokens = [
     {
       symbol: "ETH",
       name: "Ethereum",
@@ -400,15 +390,15 @@ const fetchCurrentBalance = useCallback(     //dbg
 
   const [displayBalance, setDisplayBalance] = useState("$0.00");
 
-useEffect(() => {
-  if (liveEthBalance !== null) {
-    const formatted = `$${liveEthBalance.toFixed(6)}`;
-    console.log("🎨 Updating display balance to:", formatted);
-    setDisplayBalance(formatted);
-  } else {
-    setDisplayBalance("$0.00");
-  }
-}, [liveEthBalance]);
+  useEffect(() => {
+    if (liveEthBalance !== null) {
+      const formatted = `$${liveEthBalance.toFixed(6)}`;
+      console.log(" Updating display balance to:", formatted);
+      setDisplayBalance(formatted);
+    } else {
+      setDisplayBalance("$0.00");
+    }
+  }, [liveEthBalance]);
 
   const activeAddress = getAddress();
 
@@ -491,10 +481,10 @@ useEffect(() => {
 
                   <div
                     onClick={addAccount}
-                    className="p-2  text-lg text-blue-600 font-bold hover:bg-green-50 rounded-lg cursor-pointer"
+                    className="p-2 text-lg text-blue-600 font-bold hover:bg-green-50 rounded-lg cursor-pointer"
                   >
                     <div className="flex gap-2">
-                      <TiPlus className="w-7 h-7 " />
+                      <TiPlus className="w-7 h-7" />
                       <h1>Add Account</h1>
                     </div>
                   </div>
@@ -502,7 +492,7 @@ useEffect(() => {
               )}
 
               <div className="flex flex-row mt-1">
-                {tokens.map((token, index) => (
+                {displayTokens.map((token, index) => (
                   <div
                     key={token.symbol}
                     className={`
@@ -548,7 +538,7 @@ useEffect(() => {
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <GiLevelFourAdvanced className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
+                  <h1 className="text-lg text-gray-700 font-semibold">
                     Account details
                   </h1>
                 </div>
@@ -556,35 +546,33 @@ useEffect(() => {
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <IoShieldCheckmarkOutline className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
+                  <h1 className="text-lg text-gray-700 font-semibold">
                     Permissions
                   </h1>
                 </div>
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <IoIosGitNetwork className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
+                  <h1 className="text-lg text-gray-700 font-semibold">
                     Networks
                   </h1>
                 </div>
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <HiOutlineCube className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
-                    Snaps
-                  </h1>
+                  <h1 className="text-lg text-gray-700 font-semibold">Snaps</h1>
                 </div>
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <LuShieldQuestion className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
+                  <h1 className="text-lg text-gray-700 font-semibold">
                     Support
                   </h1>
                 </div>
 
                 <div className="flex gap-3 hover:bg-gray-100">
                   <IoSettingsOutline className="w-5 h-5 mt-1 text-gray-700 font-semibold" />
-                  <h1 className="text-lg text-gray-700 font-semibold ">
+                  <h1 className="text-lg text-gray-700 font-semibold">
                     Settings
                   </h1>
                 </div>
@@ -593,10 +581,10 @@ useEffect(() => {
           </nav>
           <div className="border-b-1 border-gray-400 mx-4"></div>
           <div className="flex flex-col justify-center items-center mt-2 gap-1">
-            <h1 className="text-4xl font-semibold text-black ">
-             { displayBalance}
+            <h1 className="text-4xl font-semibold text-black">
+              {displayBalance}
             </h1>
-            <h1 className="text-lg font-semibold ">+$0.00(+0.00%)</h1>
+            <h1 className="text-lg font-semibold">+$0.00(+0.00%)</h1>
           </div>
 
           {incomingReceivedTx && (
@@ -646,14 +634,14 @@ useEffect(() => {
               </button>
             </div>
           )}
-          <div className="flex flex-row justify-center items-center gap-6 mt-5 mb-4 ">
-            <button className=" flex flex-col rounded-2xl p-4 bg-gray-100 pr-6 hover:bg-gray-200 cursor-pointer">
-              <TbCurrencyDollar className="w-5 h-5 text-gray-500 mx-2 " />
+          <div className="flex flex-row justify-center items-center gap-6 mt-5 mb-4">
+            <button className="flex flex-col rounded-2xl p-4 bg-gray-100 pr-6 hover:bg-gray-200 cursor-pointer">
+              <TbCurrencyDollar className="w-5 h-5 text-gray-500 mx-2" />
               <h1 className="text-md font-semibold">Buy</h1>
             </button>
 
             <button className="flex flex-col rounded-2xl p-4 bg-gray-100 pr-6 hover:bg-gray-200 cursor-pointer">
-              <MdOutlineSwapVert className="w-5 h-5 text-gray-500 mx-2 " />
+              <MdOutlineSwapVert className="w-5 h-5 text-gray-500 mx-2" />
               <h1 className="text-md font-semibold">Swap</h1>
             </button>
 
@@ -663,7 +651,7 @@ useEffect(() => {
                 setShowSendModal(true);
               }}
             >
-              <IoMdSend className="w-5 h-5 text-gray-500 mx-2 " />
+              <IoMdSend className="w-5 h-5 text-gray-500 mx-2" />
               <h1 className="text-md font-semibold">Send</h1>
             </button>
 
@@ -671,7 +659,7 @@ useEffect(() => {
               className="flex flex-col rounded-2xl p-4 bg-gray-100 pr-4 hover:bg-gray-200 cursor-pointer"
               onClick={() => setShowReceiveModal(true)}
             >
-              <MdOutlineCallReceived className="w-5 h-5 text-gray-500 mx-4 " />
+              <MdOutlineCallReceived className="w-5 h-5 text-gray-500 mx-4" />
               <h1 className="text-md font-semibold">Receive</h1>
             </button>
           </div>
@@ -690,20 +678,35 @@ useEffect(() => {
             </h1>
           </div>
           <div className="flex justify-between">
-            <div className="border-2 rounded-full flex border-gray-200 p-1 gap-1  mx-3 mb-2 cursor-pointer">
-              <button className="text-gray-500 font-semibold">
-                {selectedItems}
-              </button>
-              <IoIosArrowDown
-                className="w-4 h-4 mt-1 text-gray-500 "
-                onClick={() => {
-                  setOpenSelector(true);
-                }}
-              />
+            <div
+              className="border-2 rounded-full flex border-gray-200 p-1 gap-1 mx-3 mb-2 cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => setOpenSelector(true)}
+            >
+              <div className="text-gray-500 font-semibold flex items-center gap-1 px-2">
+                {selectedItems && selectedItems.logo && (
+                  <img
+                    src={selectedItems.logo}
+                    alt={selectedItems.symbol}
+                    className="w-4 h-4 rounded-full"
+                  />
+                )}
+                <span>
+                  {selectedItems ? selectedItems.symbol : "Select Token"}
+                </span>
+              </div>
+
+              <IoIosArrowDown className="w-4 h-4 mt-1 text-gray-500" />
             </div>
 
-            <div className="flex gap-4 cursor-pointer  ">
-              <IoFilterOutline className="w-6 h-6 hover:bg-gray-200 rounded-full  text-gray-500" />
+            {/* {isSelectorOpen && (
+    <TokenSelector 
+        onSelect={setSelectedToken} // Pass the setter function down!
+        onClose={() => setIsSelectorOpen(false)} // Pass a function to close
+    />
+)} */}
+
+            <div className="flex gap-4 cursor-pointer">
+              <IoFilterOutline className="w-6 h-6 hover:bg-gray-200 rounded-full text-gray-500" />
               <BsThreeDotsVertical className="w-6 h-6 hover:bg-gray-200 rounded-full text-gray-500" />
             </div>
           </div>
@@ -717,7 +720,6 @@ useEffect(() => {
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
-        // draggable
         pauseOnHover
         theme="light"
       />

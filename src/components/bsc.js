@@ -16,29 +16,32 @@ export const BSC_TESTNET_PARAMS = {
 };
 
 export const switchToBnb = async () => {
-  if (!window.ethereum) {
-    toast.warn("MetaMask not found");
+  const provider = getMetaMaskProvider();
+
+  if (!provider) {
+    toast.warn("MetaMask provider not found. Please ensure MetaMask is installed and set as the primary provider in your wallet settings.");
     return;
   }
-
+  
   try {
-    await window.ethereum.request({
+    await provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: BSC_TESTNET_PARAMS.chainId }],
     });
   } catch (error) {
     if (error.code === 4902) {
       try {
-        await window.ethereum.request({
+        await provider.request({
           method: "wallet_addEthereumChain",
           params: [BSC_TESTNET_PARAMS],
         });
       } catch (addError) {
-        toast.warn("User denied network addition");
+        toast.warn("User denied network addition.");
         console.error(addError);
       }
     } else {
       console.error(error);
+      toast.error(`Failed to switch chain: ${error.message || error.code}`);
     }
   }
 };
