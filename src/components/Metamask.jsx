@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { IoIosArrowDown } from "react-icons/io";
 import { IoSettingsOutline } from "react-icons/io5";
 import TokenSelector from "./TokenSelector";
@@ -23,21 +23,94 @@ import { IoShieldCheckmarkOutline } from "react-icons/io5";
 import { IoIosGitNetwork } from "react-icons/io";
 import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
-import { switchToBnb } from "./bsc";
-
+import { getPolygonBalance } from "./polygon";
 function Metamask() {
   const [menu, showMenu] = useState(false);
+
+  const [showToken, setShowToken] = useState(false);
+
   const [openSelector, setOpenSelector] = useState(false);
-  const [selectedItems, setSelectedItems] = useState(tokenss[0]); // Initialize with first token from tokenss
-  const [amount, setAmount] = useState();
+  const [selectedItems, setSelectedItems] = useState(tokenss[0]);
   const Public_Address = "0x33570eB7525d6e9375FbDbE9BdB8f3437435f860";
+  const SEPOLIA_RPC = import.meta.env.VITE_SEPOLIA_RPC_URL;
+  const SEPOLIA_PRIVATE = import.meta.env.VITE_PRIVATE_KEY;
+  const sepoliaProvider = new ethers.JsonRpcProvider(SEPOLIA_RPC, 11155111);
+  const sepoliaSigner = new ethers.Wallet(SEPOLIA_PRIVATE, sepoliaProvider);
+
+  const [currentProvider, setCurrentProvider] = useState(sepoliaProvider);
+  const [currentSigner, setCurrentSigner] = useState(sepoliaSigner);
+  const [currentChain, setCurrentChain] = useState("Ethereum");
 
   const [account, setAccount] = useState([]);
   const [activeAccount, setActiveAccount] = useState("");
   const [accDropDown, setAccDropDown] = useState(false);
-  const [liveEthBalance, setLiveEthBalance] = useState(0);
+  const [liveBalance, setLiveBalance] = useState(0);
 
-  // Load accounts from localStorage
+  const balanceRequestId = useRef(0);
+
+  const getAddress = useCallback(() => {
+    const activeAccObj = account.find(
+      (acc) => acc.name.trim() === activeAccount.trim()
+    );
+    return activeAccObj ? activeAccObj.address : null;
+  }, [account, activeAccount]);
+
+  const normalizeAddress = (addr) => {
+    if (!addr || typeof addr !== "string") return null;
+    if (!addr.startsWith("0x")) return null;
+    return addr.toLowerCase();
+  };
+
+ const fetchCurrentBalance = useCallback(async (address, currentChain) => {
+    if (!address) return;
+
+    const requestId = ++balanceRequestId.current;
+    const targetAddress = normalizeAddress(address);
+
+    if (!targetAddress) {
+        // Use a generic state setter here, or handle multi-chain state
+        setLiveBalance(0); // Assuming you use a generic state: [liveBalance, setLiveBalance]
+        return;
+    }
+
+    try {
+        let balance = 0; // Initialize balance to 0
+
+        // 1. Select the correct fetching function
+        if (currentChain === "Ethereum") {
+            balance = await getEthBalance(targetAddress);
+        } else if (currentChain === "Polygon") {
+            balance = await getPolygonBalance(targetAddress);
+        } else {
+            console.warn(`Unsupported chain requested: ${currentChain}`);
+            // If the chain is unsupported, return early
+            return;
+        }
+
+        // 2. Check for race condition and update state
+        if (requestId !== balanceRequestId.current) return;
+
+        // Use the generic state setter to store the fetched balance
+        // If you were using setLiveEthBalance, you would use that here, but 
+        // a generic name is better for a multi-chain function.
+        setLiveBalance(balance); 
+
+    } catch (error) {
+        console.error(`Error fetching ${currentChain} balance:`, error);
+        
+        // 3. Clear balance on error if this is the most recent request
+        if (requestId === balanceRequestId.current) {
+            setLiveBalance(0);
+        }
+    }
+}, [
+    getEthBalance,       // Dependency for Ethereum
+    getPolygonBalance,   // Dependency for Polygon
+    normalizeAddress,    // Dependency for address helper
+    setLiveBalance,      // Dependency for state update (renamed from setLiveEthBalance)
+    balanceRequestId     // Dependency for handling race conditions
+]);
+
   useEffect(() => {
     try {
       const savedAccounts = localStorage.getItem("metamask-accounts");
@@ -75,7 +148,6 @@ function Metamask() {
     }
   }, []);
 
-  // Save accounts to localStorage
   useEffect(() => {
     if (account.length > 0) {
       try {
@@ -86,7 +158,6 @@ function Metamask() {
     }
   }, [account]);
 
-  // Save active account to localStorage
   useEffect(() => {
     if (activeAccount) {
       try {
@@ -97,6 +168,21 @@ function Metamask() {
     }
   }, [activeAccount]);
 
+  useEffect(() => {
+    const address = getAddress();
+
+    if (address) {
+      setLiveBalance(0);
+      fetchCurrentBalance(address);
+
+      const intervalId = setInterval(() => {
+        fetchCurrentBalance(address);
+      }, 60000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [activeAccount, getAddress, fetchCurrentBalance]);
+
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [staggedTransfer, setStaggedTransfer] = useState([]);
@@ -106,52 +192,12 @@ function Metamask() {
     token: "ETH",
   });
 
-  const getAddress = () => {
-    const activeAccObj = account.find(
-      (acc) => acc.name.trim() === activeAccount.trim()
-    );
-    return activeAccObj ? activeAccObj.address : null;
-  };
-
-  const fetchCurrentBalance = useCallback(
-    async (address) => {
-      const currentActiveAddress = getAddress();
-
-      console.log("Fetching balance for:", address);
-
-      if (address && address.startsWith("0x")) {
-        const balance = await getEthBalance(address);
-        console.log("Balance fetched:", balance);
-
-        if (address.toLowerCase() === currentActiveAddress.toLowerCase()) {
-          console.log("Previous balance:", liveEthBalance);
-          setLiveEthBalance(balance);
-          console.log("New balance set to:", balance);
-        }
-         else {
-          console.warn(
-            `STALE FETCH AVOIDED: Result for ${address} ignored. Active address is now ${currentActiveAddress}.`
-          );
-        }
-      } else {
-        console.log("Invalid address");
-        setLiveEthBalance(0);
-      }
-    },
-    [liveEthBalance]
-  );
-
-  useEffect(() => {
-    const address = getAddress();
-    fetchCurrentBalance(address);
-
-    const intervalId = setInterval(() => fetchCurrentBalance(address), 3000);
-
-    return () => clearInterval(intervalId);
-  }, [activeAccount, fetchCurrentBalance]);
-
   const accountToggle = () => {
     setAccDropDown((prevState) => !prevState);
+  };
+
+  const tokenToggle = () => {
+    setShowToken((prevState) => !prevState);
   };
 
   const selectAccount = (name) => {
@@ -206,7 +252,7 @@ function Metamask() {
       return;
     }
 
-    if (liveEthBalance < amountFloat) {
+    if (liveBalance < amountFloat) {
       toast.error(
         "Insufficient ETH balance for the transfer amount (on Sepolia)."
       );
@@ -296,9 +342,9 @@ function Metamask() {
       return;
     }
 
-    if (liveEthBalance < finalAmount) {
+    if (liveBalance < finalAmount) {
       toast.error(
-        `Insufficient ETH balance. You have ${liveEthBalance} ETH but need ${finalAmount} ETH.`
+        `Insufficient ETH balance. You have ${liveBalance} ETH but need ${finalAmount} ETH.`
       );
       return;
     }
@@ -327,6 +373,68 @@ function Metamask() {
     }
   };
 
+  const switchToEthereum = () => {
+    try {
+      const provider = new ethers.JsonRpcProvider(
+        import.meta.env.VITE_SEPOLIA_RPC_URL,
+        11155111
+      );
+
+      const signer = new ethers.Wallet(
+        import.meta.env.VITE_PRIVATE_KEY,
+        provider
+      );
+
+      setCurrentProvider(provider);
+      setCurrentSigner(signer);
+      setCurrentChain("Ethereum");
+
+      toast.success("Switched to Ethereum (Sepolia)!");
+
+      // Refresh balance after chain switch
+      const address = getAddress();
+      if (address) {
+        fetchCurrentBalance(address);
+      }
+    } catch (error) {
+      toast.error("Failed to switch to Ethereum: " + error.message);
+      console.error(error);
+    }
+  };
+
+  const switchToPolygon = () => {
+    try {
+      const provider = new ethers.JsonRpcProvider(
+        import.meta.env.VITE_POLYGON_RPC_URL,
+        80001
+      );
+
+      const signer = new ethers.Wallet(
+        import.meta.env.VITE_POLYGON_PRIVATE_KEY,
+        provider
+      );
+
+      setCurrentProvider(provider);
+      setCurrentSigner(signer);
+      setCurrentChain("Polygon");
+
+      toast.success("Switched to Polygon!");
+
+      // Refresh balance after chain switch
+      const address = getAddress();
+      if (address) {
+        fetchCurrentBalance(address);
+      }
+    } catch (error) {
+      toast.error("Failed to switch to Polygon: " + error.message);
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrentBalance();
+  }, [currentProvider]);
+
   const handleAcceptReceivedFunds = (txId) => {
     setStaggedTransfer((prevQueue) => prevQueue.filter((tx) => tx.id !== txId));
     toast.info("Funds accepted. Transaction history updated.");
@@ -336,12 +444,10 @@ function Metamask() {
     setSelectedItems(token);
     setOpenSelector(false);
 
-    if (token.symbol === "BNB") {
-      switchToBnb();
-    }
-
-    if (token.chain === "BSC") {
-      switchToBnb();
+    if (token.symbol === "Polygon" || token.chain === "Polygon") {
+      switchToPolygon();
+    } else if (token.symbol === "Ethereum" || token.chain === "Ethereum") {
+      switchToEthereum();
     }
   };
 
@@ -387,18 +493,6 @@ function Metamask() {
       logo: "https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png",
     },
   ];
-
-  const [displayBalance, setDisplayBalance] = useState("$0.00");
-
-  useEffect(() => {
-    if (liveEthBalance !== null) {
-      const formatted = `$${liveEthBalance.toFixed(6)}`;
-      console.log(" Updating display balance to:", formatted);
-      setDisplayBalance(formatted);
-    } else {
-      setDisplayBalance("$0.00");
-    }
-  }, [liveEthBalance]);
 
   const activeAddress = getAddress();
 
@@ -582,7 +676,10 @@ function Metamask() {
           <div className="border-b-1 border-gray-400 mx-4"></div>
           <div className="flex flex-col justify-center items-center mt-2 gap-1">
             <h1 className="text-4xl font-semibold text-black">
-              {displayBalance}
+              <p>
+                {liveBalance ? liveBalance.toFixed(4) : "0.0000"}{" "}
+                {currentChain === "Ethereum" ? "ETH" : "POL"}
+              </p>
             </h1>
             <h1 className="text-lg font-semibold">+$0.00(+0.00%)</h1>
           </div>
@@ -595,7 +692,7 @@ function Metamask() {
               <div>
                 <p className="font-bold">Funds Available!</p>
                 <p className="text-sm">
-                  You have received **{incomingReceivedTx.amount} from{" "}
+                  You have received {incomingReceivedTx.amount} from{" "}
                   {incomingReceivedTx.sender}.
                 </p>
               </div>
@@ -663,8 +760,12 @@ function Metamask() {
               <h1 className="text-md font-semibold">Receive</h1>
             </button>
           </div>
+
           <div className="flex gap-4 mx-2 text-lg text-gray-500 font-semibold focus:underline cursor-pointer mb-2">
-            <h1 className="hover:text-black no-underline active:underline">
+            <h1
+              className="hover:text-black no-underline active:underline focus:underline"
+              onClick={() => tokenToggle()}
+            >
               Tokens
             </h1>
             <h1 className="hover:text-black no-underline active:underline">
@@ -698,18 +799,42 @@ function Metamask() {
               <IoIosArrowDown className="w-4 h-4 mt-1 text-gray-500" />
             </div>
 
-            {/* {isSelectorOpen && (
-    <TokenSelector 
-        onSelect={setSelectedToken} // Pass the setter function down!
-        onClose={() => setIsSelectorOpen(false)} // Pass a function to close
-    />
-)} */}
-
             <div className="flex gap-4 cursor-pointer">
               <IoFilterOutline className="w-6 h-6 hover:bg-gray-200 rounded-full text-gray-500" />
               <BsThreeDotsVertical className="w-6 h-6 hover:bg-gray-200 rounded-full text-gray-500" />
             </div>
           </div>
+
+          {showToken && (
+            <div className="mt-2 mx-2 mb-2 flex gap-8">
+              <div className="relative">
+                <div className=" flex justify-center items-center rounded-full bg-gray-200 w-12 h-12">
+                  <h1 className="text-2xl font-semibold  text-gray-700">
+                    {currentChain.charAt(0)}
+                  </h1>
+                </div>
+                <div className="flex items-center justify-center rounded-full absolute bottom-0 left-7 w-5 h-5 bg-white">
+                  <p>{currentChain === "Ethereum" ? "S" : "A"}</p>
+                </div>
+              </div>
+
+              <div>
+                <h1 className="font-semibold text-xl text-gray-700 mt-1">
+                  {currentChain.slice(0, 3).toUpperCase()}
+                </h1>
+              </div>
+
+              <div className="flex mx-10 mt-1 flex-col ">
+                <p className="test-sm text-gray-700">
+                  No conversion rate available
+                </p>
+                <p className="text-sm text-gray-700 flex justify-end">
+                  {liveBalance.toFixed(4)}{" "}
+                  {currentChain.toUpperCase().slice(0, 3)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <ToastContainer
