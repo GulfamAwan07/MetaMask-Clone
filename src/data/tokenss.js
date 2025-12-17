@@ -9,13 +9,21 @@ export const tokenss = [
     isNative: true,
   },
   {
-  symbol: "POL",
-  name: "Polygon",
-  chain: "Polygon",
-  address: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-  decimals: 18,
-  logo: "https://cryptologos.cc/logos/polygon-matic-logo.png",
-},
+    symbol: "POL",
+    name: "Polygon",
+    chain: "Polygon",
+    address: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+    decimals: 18,
+    logo: "https://cryptologos.cc/logos/polygon-matic-logo.png",
+  },
+  {
+    symbol: "SOL",
+    name: "Solana",
+    chain: "Solana",
+    address: "So11111111111111111111111111111111111111112",
+    decimals: 9,
+    logo: "https://cryptologos.cc/logos/solana-sol-logo.png",
+  },
 
   // {
   //   symbol: "BNB",

@@ -24,6 +24,8 @@ import { IoIosGitNetwork } from "react-icons/io";
 import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
 import { getPolygonBalance } from "./polygon";
+import { getSolanaBalance, executeSolanaTransfer, getSolanaAddress, isValidSolanaAddress } from "./solana";
+import { Connection } from '@solana/web3.js';
 function Metamask() {
   const [menu, showMenu] = useState(false);
 
@@ -68,7 +70,6 @@ function Metamask() {
     const targetAddress = normalizeAddress(address);
 
     if (!targetAddress) {
-        // Use a generic state setter here, or handle multi-chain state
         setLiveBalance(0); // Assuming you use a generic state: [liveBalance, setLiveBalance]
         return;
     }
@@ -103,13 +104,7 @@ function Metamask() {
             setLiveBalance(0);
         }
     }
-}, [
-    getEthBalance,       // Dependency for Ethereum
-    getPolygonBalance,   // Dependency for Polygon
-    normalizeAddress,    // Dependency for address helper
-    setLiveBalance,      // Dependency for state update (renamed from setLiveEthBalance)
-    balanceRequestId     // Dependency for handling race conditions
-]);
+}, []);
 
   useEffect(() => {
     try {
@@ -173,15 +168,15 @@ function Metamask() {
 
     if (address) {
       setLiveBalance(0);
-      fetchCurrentBalance(address);
+      fetchCurrentBalance(address, currentChain);
 
       const intervalId = setInterval(() => {
-        fetchCurrentBalance(address);
+        fetchCurrentBalance(address, currentChain);
       }, 60000);
 
       return () => clearInterval(intervalId);
     }
-  }, [activeAccount, getAddress, fetchCurrentBalance]);
+  }, [activeAccount, getAddress, fetchCurrentBalance, currentChain]);
 
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -268,7 +263,7 @@ function Metamask() {
         `Transaction confirmed! Hash: ${result.hash}. Live balance updating...`
       );
       setTimeout(() => {
-        fetchCurrentBalance(senderAddress);
+        fetchCurrentBalance(senderAddress, currentChain);
       }, 3000);
     } else {
       toast.error(
@@ -364,7 +359,7 @@ function Metamask() {
         )
       );
       setTimeout(() => {
-        fetchCurrentBalance(senderAddress);
+        fetchCurrentBalance(senderAddress, currentChain);
       }, 3000);
     } else {
       toast.error(
@@ -394,7 +389,7 @@ function Metamask() {
       // Refresh balance after chain switch
       const address = getAddress();
       if (address) {
-        fetchCurrentBalance(address);
+        fetchCurrentBalance(address, "Ethereum");
       }
     } catch (error) {
       toast.error("Failed to switch to Ethereum: " + error.message);
@@ -423,7 +418,7 @@ function Metamask() {
       // Refresh balance after chain switch
       const address = getAddress();
       if (address) {
-        fetchCurrentBalance(address);
+        fetchCurrentBalance(address, "Polygon");
       }
     } catch (error) {
       toast.error("Failed to switch to Polygon: " + error.message);
@@ -431,9 +426,12 @@ function Metamask() {
     }
   };
 
-  useEffect(() => {
-    fetchCurrentBalance();
-  }, [currentProvider]);
+ useEffect(() => {
+  const address = getAddress();
+  if (address) {
+    fetchCurrentBalance(address, currentChain);
+  }
+}, [currentProvider, currentChain, getAddress, fetchCurrentBalance]);
 
   const handleAcceptReceivedFunds = (txId) => {
     setStaggedTransfer((prevQueue) => prevQueue.filter((tx) => tx.id !== txId));
@@ -763,7 +761,7 @@ function Metamask() {
 
           <div className="flex gap-4 mx-2 text-lg text-gray-500 font-semibold focus:underline cursor-pointer mb-2">
             <h1
-              className="hover:text-black no-underline active:underline focus:underline"
+              className="hover:text-black  active:underline focus:underline"
               onClick={() => tokenToggle()}
             >
               Tokens
@@ -806,7 +804,7 @@ function Metamask() {
           </div>
 
           {showToken && (
-            <div className="mt-2 mx-2 mb-2 flex gap-8">
+            <div className="mt-2 mx-2 mb-2 flex gap-8 ">
               <div className="relative">
                 <div className=" flex justify-center items-center rounded-full bg-gray-200 w-12 h-12">
                   <h1 className="text-2xl font-semibold  text-gray-700">

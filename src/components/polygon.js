@@ -28,17 +28,21 @@ export const switchToPolygon = (setProvider, setSigner, setChain) => {
   }
 };
 
-
-export async function getPolygonBalance(address) {
-  if (!polygonProvider) return 0; 
+export const getPolygonBalance = async (address) => {
   try {
-    const balanceWei = await polygonProvider.getBalance(address);
-    return parseFloat(ethers.formatEther(balanceWei));
+    const polygonProvider = new ethers.JsonRpcProvider(
+      import.meta.env.VITE_POLYGON_RPC_URL,
+      80002
+    );
+
+    const balance = await polygonProvider.getBalance(address);
+    const balanceInEther = ethers.formatEther(balance);
+    return parseFloat(balanceInEther);
   } catch (error) {
     console.error("Error fetching Polygon balance:", error);
-    return 0;
+    throw error;
   }
-}
+};
 
 export async function executePolygonTransfer(recipientAddress, amountEth) {
   if (!recipientAddress || !amountEth) {
