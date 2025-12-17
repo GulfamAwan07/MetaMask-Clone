@@ -24,15 +24,22 @@ import { IoIosGitNetwork } from "react-icons/io";
 import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
 import { getPolygonBalance } from "./polygon";
-import { getSolanaBalance, executeSolanaTransfer, getSolanaAddress, isValidSolanaAddress } from "./solana";
-import { Connection } from '@solana/web3.js';
+import bs58 from "bs58";
+import { Keypair } from "@solana/web3.js";
+import {
+  getSolanaBalance,
+  executeSolanaTransfer,
+  getSolanaAddress,
+  isValidSolanaAddress,
+} from "./solana";
+import { Connection } from "@solana/web3.js";
+
 function Metamask() {
   const [menu, showMenu] = useState(false);
-
   const [showToken, setShowToken] = useState(false);
-
   const [openSelector, setOpenSelector] = useState(false);
   const [selectedItems, setSelectedItems] = useState(tokenss[0]);
+
   const Public_Address = "0x33570eB7525d6e9375FbDbE9BdB8f3437435f860";
   const SEPOLIA_RPC = import.meta.env.VITE_SEPOLIA_RPC_URL;
   const SEPOLIA_PRIVATE = import.meta.env.VITE_PRIVATE_KEY;
@@ -46,84 +53,93 @@ function Metamask() {
   const [account, setAccount] = useState([]);
   const [activeAccount, setActiveAccount] = useState("");
   const [accDropDown, setAccDropDown] = useState(false);
-  const [liveBalance, setLiveBalance] = useState(0);
+  const [balances, setBalances] = useState({});
 
   const balanceRequestId = useRef(0);
+  const currentBalance = balances[`${currentChain}:${activeAccount}`] || 0;
 
   const getAddress = useCallback(() => {
-    const activeAccObj = account.find(
-      (acc) => acc.name.trim() === activeAccount.trim()
-    );
-    return activeAccObj ? activeAccObj.address : null;
-  }, [account, activeAccount]);
+    const acc = account.find((a) => a.name === activeAccount);
+    if (!acc) {
+      console.log("No account found for:", activeAccount);
+      return null;
+    }
 
-  const normalizeAddress = (addr) => {
-    if (!addr || typeof addr !== "string") return null;
-    if (!addr.startsWith("0x")) return null;
-    return addr.toLowerCase();
-  };
+    const address = currentChain === "Solana" ? acc.solAddress : acc.ethAddress;
+    console.log(`Getting address for ${currentChain}:`, address);
+    return address || null;
+  }, [account, activeAccount, currentChain]);
 
- const fetchCurrentBalance = useCallback(async (address, currentChain) => {
-    if (!address) return;
-
-    const requestId = ++balanceRequestId.current;
-    const targetAddress = normalizeAddress(address);
-
-    if (!targetAddress) {
-        setLiveBalance(0); // Assuming you use a generic state: [liveBalance, setLiveBalance]
+  const fetchCurrentBalance = useCallback(
+    async (address, chain) => {
+      if (!address) {
+        console.log("No address provided for balance fetch");
         return;
-    }
+      }
 
-    try {
-        let balance = 0; // Initialize balance to 0
+      const key = `${chain}:${activeAccount}`;
+      let balance = 0;
 
-        // 1. Select the correct fetching function
-        if (currentChain === "Ethereum") {
-            balance = await getEthBalance(targetAddress);
-        } else if (currentChain === "Polygon") {
-            balance = await getPolygonBalance(targetAddress);
-        } else {
-            console.warn(`Unsupported chain requested: ${currentChain}`);
-            // If the chain is unsupported, return early
-            return;
+      try {
+        console.log(`Fetching ${chain} balance for address:`, address);
+
+        if (chain === "Ethereum") {
+          balance = await getEthBalance(address, currentProvider);
+        } else if (chain === "Polygon") {
+          balance = await getPolygonBalance(address, currentProvider);
+        } else if (chain === "Solana") {
+          balance = await getSolanaBalance(address);
         }
 
-        // 2. Check for race condition and update state
-        if (requestId !== balanceRequestId.current) return;
+        console.log(`Balance fetched for ${chain}:`, balance);
 
-        // Use the generic state setter to store the fetched balance
-        // If you were using setLiveEthBalance, you would use that here, but 
-        // a generic name is better for a multi-chain function.
-        setLiveBalance(balance); 
-
-    } catch (error) {
-        console.error(`Error fetching ${currentChain} balance:`, error);
-        
-        // 3. Clear balance on error if this is the most recent request
-        if (requestId === balanceRequestId.current) {
-            setLiveBalance(0);
-        }
-    }
-}, []);
+        setBalances((prev) => ({
+          ...prev,
+          [key]: balance,
+        }));
+      } catch (err) {
+        console.error(`Error fetching ${chain} balance:`, err);
+        setBalances((prev) => ({
+          ...prev,
+          [key]: 0,
+        }));
+      }
+    },
+    [activeAccount, currentProvider]
+  );
 
   useEffect(() => {
     try {
       const savedAccounts = localStorage.getItem("metamask-accounts");
       if (savedAccounts) {
         const parsedAccounts = JSON.parse(savedAccounts);
-        setAccount(parsedAccounts);
+
+        // Normalize accounts to ensure they have proper address fields
+        const normalizedAccounts = parsedAccounts.map((acc) => {
+          if (acc.address && !acc.ethAddress) {
+            return { ...acc, ethAddress: acc.address };
+          }
+          return acc;
+        });
+
+        setAccount(normalizedAccounts);
 
         const savedActiveAccount = localStorage.getItem(
           "metamask-active-account"
         );
         if (savedActiveAccount) {
           setActiveAccount(savedActiveAccount);
-        } else if (parsedAccounts.length > 0) {
-          setActiveAccount(parsedAccounts[0].name);
+        } else if (normalizedAccounts.length > 0) {
+          setActiveAccount(normalizedAccounts[0].name);
         }
       } else {
         const defaultAccount = [
-          { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
+          {
+            id: "1",
+            name: "Account 1",
+            ethAddress: Public_Address,
+            balance: 0.0,
+          },
         ];
         setAccount(defaultAccount);
         setActiveAccount(defaultAccount[0].name);
@@ -136,7 +152,12 @@ function Metamask() {
     } catch (error) {
       console.error("Error loading accounts:", error);
       const defaultAccount = [
-        { id: "1", name: "Account 1", address: Public_Address, balance: 0.0 },
+        {
+          id: "1",
+          name: "Account 1",
+          ethAddress: Public_Address,
+          balance: 0.0,
+        },
       ];
       setAccount(defaultAccount);
       setActiveAccount(defaultAccount[0].name);
@@ -167,7 +188,6 @@ function Metamask() {
     const address = getAddress();
 
     if (address) {
-      setLiveBalance(0);
       fetchCurrentBalance(address, currentChain);
 
       const intervalId = setInterval(() => {
@@ -200,28 +220,61 @@ function Metamask() {
     setAccDropDown(false);
   };
 
-  const addAccount = () => {
-    const newWallet = ethers.Wallet.createRandom();
+  const addEvmAccount = () => {
+    const wallet = ethers.Wallet.createRandom();
+
     const newId = (account.length + 1).toString();
     const newName = `Account ${newId}`;
-    const newAddress = newWallet.address;
 
-    toast.info(
-      `New Account Created, Copy Private key to import : ${newWallet.privateKey}`
-    );
+    toast.info(`EVM Account Created\nSAVE PRIVATE KEY:\n${wallet.privateKey}`, {
+      autoClose: false,
+    });
 
-    setAccount((prevAccount) => [
-      ...prevAccount,
+    setAccount((prev) => [
+      ...prev,
       {
         id: newId,
-        address: newAddress,
         name: newName,
-        balance: 0.0,
+        ethAddress: wallet.address,
       },
     ]);
 
     setActiveAccount(newName);
     setAccDropDown(false);
+  };
+
+  const addSolanaAccount = () => {
+    const keypair = Keypair.generate();
+
+    const newId = (account.length + 1).toString();
+    const newName = `Solana Account ${newId}`;
+
+    const solAddress = keypair.publicKey.toBase58();
+    const solPrivateKey = bs58.encode(keypair.secretKey);
+
+    toast.info(`Solana Account Created\nSAVE PRIVATE KEY:\n${solPrivateKey}`, {
+      autoClose: false,
+    });
+
+    setAccount((prev) => [
+      ...prev,
+      {
+        id: newId,
+        name: newName,
+        solAddress: solAddress, // FIXED: was wallet.address
+      },
+    ]);
+
+    setActiveAccount(newName);
+    setAccDropDown(false);
+  };
+
+  const addAccount = () => {
+    if (currentChain === "Solana") {
+      addSolanaAccount();
+    } else {
+      addEvmAccount();
+    }
   };
 
   const handleInputChange = (e) => {
@@ -247,20 +300,40 @@ function Metamask() {
       return;
     }
 
-    if (liveBalance < amountFloat) {
+    if (currentBalance < amountFloat) {
       toast.error(
-        "Insufficient ETH balance for the transfer amount (on Sepolia)."
+        `Insufficient ${
+          currentChain === "Ethereum"
+            ? "ETH"
+            : currentChain === "Polygon"
+            ? "POL"
+            : "SOL"
+        } balance for the transfer amount.`
       );
       return;
     }
 
-    toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
+    toast.info(
+      `Sending transaction on ${currentChain}. Waiting for confirmation...`
+    );
 
-    const result = await executeTransfer(receiptAddress, amountFloat);
+    let result;
+
+    if (currentChain === "Ethereum") {
+      result = await executeTransfer(receiptAddress, amountFloat);
+    } else if (currentChain === "Polygon") {
+      toast.error("Polygon transfers not yet implemented");
+      return;
+    } else if (currentChain === "Solana") {
+      result = await executeSolanaTransfer(receiptAddress, amountFloat);
+    } else {
+      toast.error("Unsupported chain");
+      return;
+    }
 
     if (result.success) {
       toast.success(
-        `Transaction confirmed! Hash: ${result.hash}. Live balance updating...`
+        `Transaction confirmed! Hash: ${result.hash}. Balance updating...`
       );
       setTimeout(() => {
         fetchCurrentBalance(senderAddress, currentChain);
@@ -272,7 +345,16 @@ function Metamask() {
     }
 
     setShowSendModal(false);
-    setTransaction({ receipt: "", amount: "", token: "ETH" });
+    setTransaction({
+      receipt: "",
+      amount: "",
+      token:
+        currentChain === "Ethereum"
+          ? "ETH"
+          : currentChain === "Polygon"
+          ? "POL"
+          : "SOL",
+    });
   };
 
   const handleStimulateReceive = (senderInput, amountValue) => {
@@ -293,8 +375,16 @@ function Metamask() {
       return;
     }
 
-    if (!senderInput.startsWith("0x") || senderInput.length !== 42) {
-      toast.error("Invalid Ethereum address format.");
+    let isValidAddress = false;
+    if (currentChain === "Solana") {
+      isValidAddress = isValidSolanaAddress(senderInput);
+    } else {
+      isValidAddress =
+        senderInput.startsWith("0x") && senderInput.length === 42;
+    }
+
+    if (!isValidAddress) {
+      toast.error(`Invalid ${currentChain} address format.`);
       return;
     }
 
@@ -311,6 +401,7 @@ function Metamask() {
       recipient: recipientAddress,
       amount: amountFloat,
       status: "staged",
+      chain: currentChain,
     };
 
     setStaggedTransfer((prevQueue) => [...prevQueue, newRequest]);
@@ -337,16 +428,27 @@ function Metamask() {
       return;
     }
 
-    if (liveBalance < finalAmount) {
+    if (currentBalance < finalAmount) {
       toast.error(
-        `Insufficient ETH balance. You have ${liveBalance} ETH but need ${finalAmount} ETH.`
+        `Insufficient balance. You have ${currentBalance} but need ${finalAmount}.`
       );
       return;
     }
 
-    toast.info("Sending transaction to Sepolia. Waiting for confirmation...");
+    toast.info(
+      `Sending transaction on ${currentChain}. Waiting for confirmation...`
+    );
 
-    const result = await executeTransfer(recipientAddress, finalAmount);
+    let result;
+
+    if (currentChain === "Ethereum") {
+      result = await executeTransfer(recipientAddress, finalAmount);
+    } else if (currentChain === "Solana") {
+      result = await executeSolanaTransfer(recipientAddress, finalAmount);
+    } else {
+      toast.error("Chain not supported for transfers yet");
+      return;
+    }
 
     if (result.success) {
       toast.success(
@@ -386,11 +488,13 @@ function Metamask() {
 
       toast.success("Switched to Ethereum (Sepolia)!");
 
-      // Refresh balance after chain switch
-      const address = getAddress();
-      if (address) {
-        fetchCurrentBalance(address, "Ethereum");
-      }
+      setTimeout(() => {
+        const address = getAddress();
+        console.log("Ethereum address:", address);
+        if (address) {
+          fetchCurrentBalance(address, "Ethereum");
+        }
+      }, 100);
     } catch (error) {
       toast.error("Failed to switch to Ethereum: " + error.message);
       console.error(error);
@@ -401,7 +505,7 @@ function Metamask() {
     try {
       const provider = new ethers.JsonRpcProvider(
         import.meta.env.VITE_POLYGON_RPC_URL,
-        80001
+        80002
       );
 
       const signer = new ethers.Wallet(
@@ -415,23 +519,50 @@ function Metamask() {
 
       toast.success("Switched to Polygon!");
 
-      // Refresh balance after chain switch
-      const address = getAddress();
-      if (address) {
-        fetchCurrentBalance(address, "Polygon");
-      }
+      setTimeout(() => {
+        const address = getAddress();
+        console.log("Polygon address:", address);
+        if (address) {
+          fetchCurrentBalance(address, "Polygon");
+        }
+      }, 100);
     } catch (error) {
       toast.error("Failed to switch to Polygon: " + error.message);
       console.error(error);
     }
   };
 
- useEffect(() => {
-  const address = getAddress();
-  if (address) {
-    fetchCurrentBalance(address, currentChain);
-  }
-}, [currentProvider, currentChain, getAddress, fetchCurrentBalance]);
+  const switchToSolana = () => {
+    try {
+      const connection = new Connection(
+        import.meta.env.VITE_SOLANA_RPC || "https://api.testnet.solana.com",
+        "confirmed"
+      );
+      setCurrentProvider(connection);
+      setCurrentSigner(null);
+      setCurrentChain("Solana");
+
+      toast.success("Switched to Solana");
+
+      setTimeout(() => {
+        const address = getAddress();
+        console.log("Solana address:", address);
+        if (address) {
+          fetchCurrentBalance(address, "Solana");
+        }
+      }, 100);
+    } catch (error) {
+      toast.error("Failed to switch to Solana: " + error.message);
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    const address = getAddress();
+    if (address) {
+      fetchCurrentBalance(address, currentChain);
+    }
+  }, [currentProvider, currentChain, getAddress, fetchCurrentBalance]);
 
   const handleAcceptReceivedFunds = (txId) => {
     setStaggedTransfer((prevQueue) => prevQueue.filter((tx) => tx.id !== txId));
@@ -446,6 +577,8 @@ function Metamask() {
       switchToPolygon();
     } else if (token.symbol === "Ethereum" || token.chain === "Ethereum") {
       switchToEthereum();
+    } else if (token.symbol === "Solana" || token.chain === "Solana") {
+      switchToSolana();
     }
   };
 
@@ -565,7 +698,12 @@ function Metamask() {
                       }`}
                     >
                       <div className="font-bold">{acc.name}</div>
-                      <div className="text-xs text-gray-500">{acc.address}</div>
+
+                      <div className="text-xs text-gray-500 break-all">
+                        {currentChain === "Solana"
+                          ? acc.solAddress
+                          : acc.ethAddress}
+                      </div>
                     </div>
                   ))}
 
@@ -675,8 +813,12 @@ function Metamask() {
           <div className="flex flex-col justify-center items-center mt-2 gap-1">
             <h1 className="text-4xl font-semibold text-black">
               <p>
-                {liveBalance ? liveBalance.toFixed(4) : "0.0000"}{" "}
-                {currentChain === "Ethereum" ? "ETH" : "POL"}
+                {currentBalance ? currentBalance.toFixed(4) : "0.0000"}{" "}
+                {currentChain === "Ethereum"
+                  ? "ETH"
+                  : currentChain === "Polygon"
+                  ? "POL"
+                  : "SOL"}
               </p>
             </h1>
             <h1 className="text-lg font-semibold">+$0.00(+0.00%)</h1>
@@ -812,7 +954,15 @@ function Metamask() {
                   </h1>
                 </div>
                 <div className="flex items-center justify-center rounded-full absolute bottom-0 left-7 w-5 h-5 bg-white">
-                  <p>{currentChain === "Ethereum" ? "S" : "A"}</p>
+                  <p>
+                    {currentChain === "Ethereum"
+                      ? "S"
+                      : "Solana"
+                      ? "T"
+                      : "Polygon"
+                      ? "A"
+                      : " "}
+                  </p>
                 </div>
               </div>
 
@@ -822,12 +972,12 @@ function Metamask() {
                 </h1>
               </div>
 
-              <div className="flex mx-10 mt-1 flex-col ">
+              <div className="flex sm:mx-5 md:mx-10 mt-1 flex-col ">
                 <p className="test-sm text-gray-700">
                   No conversion rate available
                 </p>
                 <p className="text-sm text-gray-700 flex justify-end">
-                  {liveBalance.toFixed(4)}{" "}
+                  {currentBalance.toFixed(4)}{" "}
                   {currentChain.toUpperCase().slice(0, 3)}
                 </p>
               </div>

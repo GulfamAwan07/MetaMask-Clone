@@ -8,13 +8,13 @@ if (!POLYGON_PRIVATE) {
   toast.error("PRIVATE_KEY is not defined. Cannot send transactions.");
 }
 
-const provider = new ethers.JsonRpcProvider(POLYGON_RPC, 80001); // Mumbai testnet
+const provider = new ethers.JsonRpcProvider(POLYGON_RPC, 80002); // Mumbai testnet
 
 const signer = new ethers.Wallet(POLYGON_PRIVATE, provider);
 
 export const switchToPolygon = (setProvider, setSigner, setChain) => {
   try {
-    const provider = new ethers.JsonRpcProvider(POLYGON_RPC, 80001);
+    const provider = new ethers.JsonRpcProvider(POLYGON_RPC, 80002);
     const signer = new ethers.Wallet(POLYGON_PRIVATE, provider);
 
     setProvider(provider);
@@ -28,21 +28,21 @@ export const switchToPolygon = (setProvider, setSigner, setChain) => {
   }
 };
 
-export const getPolygonBalance = async (address) => {
-  try {
-    const polygonProvider = new ethers.JsonRpcProvider(
-      import.meta.env.VITE_POLYGON_RPC_URL,
-      80002
-    );
+export async function getPolygonBalance(address, provider) {
+  if (!provider) return 0;
 
-    const balance = await polygonProvider.getBalance(address);
-    const balanceInEther = ethers.formatEther(balance);
-    return parseFloat(balanceInEther);
+  try {
+    // Ensure address is lowercase
+    const normalizedAddress = address.toLowerCase();
+    const balanceWei = await provider.getBalance(normalizedAddress);
+    const balance = parseFloat(ethers.formatEther(balanceWei));
+    return balance;
   } catch (error) {
     console.error("Error fetching Polygon balance:", error);
-    throw error;
+    return 0;
   }
-};
+}
+
 
 export async function executePolygonTransfer(recipientAddress, amountEth) {
   if (!recipientAddress || !amountEth) {

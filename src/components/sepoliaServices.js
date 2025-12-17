@@ -20,8 +20,8 @@ if (!PRIVATE_KEY) {
 
 const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
-export async function getEthBalance(address) {
-    if (!provider) return 0;
+export async function getEthBalance(address, provider) {
+  if (!provider) return 0;
   try {
     const balanceWei = await provider.getBalance(address);
     const balanceEth = ethers.formatEther(balanceWei);
@@ -31,6 +31,7 @@ export async function getEthBalance(address) {
     return 0;
   }
 }
+
 
 export async function executeTransfer(recipientAddress, amountEth) {
   if (!recipientAddress || !amountEth) {
