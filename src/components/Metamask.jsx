@@ -23,16 +23,20 @@ import { IoShieldCheckmarkOutline } from "react-icons/io5";
 import { IoIosGitNetwork } from "react-icons/io";
 import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
-import { getPolygonBalance } from "./polygon";
+import { getPolygonBalance, executePolygonTransfer } from "./polygon";
 import bs58 from "bs58";
 import { Keypair } from "@solana/web3.js";
-import {
-  getSolanaBalance,
-  executeSolanaTransfer,
-  getSolanaAddress,
-  isValidSolanaAddress,
-} from "./solana";
+
+import { executeSolanaTransfer, getSolanaBalance, getSolanaAddress  , isValidSolanaAddress } from './solana.js';
+//  import {
+//   generateWallet,
+//   requestAirdrop,
+//   getBalance,
+//   sendSol,
+// } from "./solana"; // if solana.js is in the same folder
+
 import { Connection } from "@solana/web3.js";
+import { renderToStaticMarkup } from "react-dom/server";
 
 function Metamask() {
   const [menu, showMenu] = useState(false);
@@ -322,8 +326,8 @@ function Metamask() {
     if (currentChain === "Ethereum") {
       result = await executeTransfer(receiptAddress, amountFloat);
     } else if (currentChain === "Polygon") {
-      toast.error("Polygon transfers not yet implemented");
-      return;
+      result = await executePolygonTransfer(receiptAddress, amountFloat);
+      
     } else if (currentChain === "Solana") {
       result = await executeSolanaTransfer(receiptAddress, amountFloat);
     } else {
@@ -445,6 +449,8 @@ function Metamask() {
       result = await executeTransfer(recipientAddress, finalAmount);
     } else if (currentChain === "Solana") {
       result = await executeSolanaTransfer(recipientAddress, finalAmount);
+    } else if (currentChain === "Polygon") {
+      result = await executePolygonTransfer(recipientAddress, finalAmount);
     } else {
       toast.error("Chain not supported for transfers yet");
       return;
@@ -535,7 +541,7 @@ function Metamask() {
   const switchToSolana = () => {
     try {
       const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || "https://api.testnet.solana.com",
+        import.meta.env.VITE_SOLANA_RPC,
         "confirmed"
       );
       setCurrentProvider(connection);
