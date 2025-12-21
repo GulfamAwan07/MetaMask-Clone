@@ -25,18 +25,15 @@ import { HiOutlineCube } from "react-icons/hi";
 import { LuShieldQuestion } from "react-icons/lu";
 import { getPolygonBalance, executePolygonTransfer } from "./polygon";
 import bs58 from "bs58";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, Connection } from "@solana/web3.js";
 
-import { executeSolanaTransfer, getSolanaBalance, getSolanaAddress  , isValidSolanaAddress } from './solana.js';
-//  import {
-//   generateWallet,
-//   requestAirdrop,
-//   getBalance,
-//   sendSol,
-// } from "./solana"; // if solana.js is in the same folder
-
-import { Connection } from "@solana/web3.js";
-import { renderToStaticMarkup } from "react-dom/server";
+import {
+  executeSolanaTransfer,
+  getSolanaBalance,
+  isValidSolanaAddress,
+  generateSolanaWallet,
+ 
+} from "./solana";
 
 function Metamask() {
   const [menu, showMenu] = useState(false);
@@ -118,7 +115,6 @@ function Metamask() {
       if (savedAccounts) {
         const parsedAccounts = JSON.parse(savedAccounts);
 
-        // Normalize accounts to ensure they have proper address fields
         const normalizedAccounts = parsedAccounts.map((acc) => {
           if (acc.address && !acc.ethAddress) {
             return { ...acc, ethAddress: acc.address };
@@ -248,24 +244,24 @@ function Metamask() {
   };
 
   const addSolanaAccount = () => {
-    const keypair = Keypair.generate();
+    const walletData = generateSolanaWallet();
 
     const newId = (account.length + 1).toString();
     const newName = `Solana Account ${newId}`;
 
-    const solAddress = keypair.publicKey.toBase58();
-    const solPrivateKey = bs58.encode(keypair.secretKey);
-
-    toast.info(`Solana Account Created\nSAVE PRIVATE KEY:\n${solPrivateKey}`, {
-      autoClose: false,
-    });
+    toast.info(
+      `Solana Account Created\nPublic Key: ${walletData.publicKey}\nSAVE PRIVATE KEY:\n${walletData.privateKey}`,
+      {
+        autoClose: false,
+      }
+    );
 
     setAccount((prev) => [
       ...prev,
       {
         id: newId,
         name: newName,
-        solAddress: solAddress, // FIXED: was wallet.address
+        solAddress: walletData.publicKey,
       },
     ]);
 
@@ -327,7 +323,6 @@ function Metamask() {
       result = await executeTransfer(receiptAddress, amountFloat);
     } else if (currentChain === "Polygon") {
       result = await executePolygonTransfer(receiptAddress, amountFloat);
-      
     } else if (currentChain === "Solana") {
       result = await executeSolanaTransfer(receiptAddress, amountFloat);
     } else {
@@ -541,14 +536,14 @@ function Metamask() {
   const switchToSolana = () => {
     try {
       const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC,
+        import.meta.env.VITE_SOLANA_RPC || "https://api.testnet.solana.com",
         "confirmed"
       );
       setCurrentProvider(connection);
       setCurrentSigner(null);
       setCurrentChain("Solana");
 
-      toast.success("Switched to Solana");
+      toast.success("Switched to Solana (Testnet)!");
 
       setTimeout(() => {
         const address = getAddress();
@@ -562,6 +557,8 @@ function Metamask() {
       console.error(error);
     }
   };
+
+  
 
   useEffect(() => {
     const address = getAddress();
@@ -829,6 +826,8 @@ function Metamask() {
             </h1>
             <h1 className="text-lg font-semibold">+$0.00(+0.00%)</h1>
           </div>
+
+          
 
           {incomingReceivedTx && (
             <div
