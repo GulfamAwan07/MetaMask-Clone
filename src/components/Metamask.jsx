@@ -32,7 +32,6 @@ import {
   getSolanaBalance,
   isValidSolanaAddress,
   generateSolanaWallet,
- 
 } from "./solana";
 
 function Metamask() {
@@ -558,8 +557,6 @@ function Metamask() {
     }
   };
 
-  
-
   useEffect(() => {
     const address = getAddress();
     if (address) {
@@ -666,7 +663,10 @@ function Metamask() {
         />
       )}
 
-      <div className="flex flex-col items-center bg-[#F3F5F9] min-h-screen overflow-x-hidden min-w-screen">
+      <div
+        className="flex flex-col items-center bg-[#F3F5F9]  overflow-x-hidden "
+        style={{ width: "360px", height: "600px" }}
+      >
         <div className="text-xl font-bold text-black font-sans mt-5">
           <h1>Meta</h1>
           <h1>Mask</h1>
@@ -689,7 +689,7 @@ function Metamask() {
                 />
               </div>
               {accDropDown && (
-                <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
+                <div className="absolute top-full left-0 mt-2 w-80 max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
                   {account.map((acc) => (
                     <div
                       key={acc.id}
@@ -724,7 +724,7 @@ function Metamask() {
                 </div>
               )}
 
-              <div className="flex flex-row mt-1">
+              <div className="flex flex-row ">
                 {displayTokens.map((token, index) => (
                   <div
                     key={token.symbol}
@@ -738,7 +738,7 @@ function Metamask() {
                     <img
                       src={token.logo}
                       alt={token.symbol}
-                      className="w-full h-full rounded-full object-cover"
+                      className="w-8 h-8 rounded-full shrink-0 object-contain"
                     />
                   </div>
                 ))}
@@ -826,8 +826,6 @@ function Metamask() {
             </h1>
             <h1 className="text-lg font-semibold">+$0.00(+0.00%)</h1>
           </div>
-
-          
 
           {incomingReceivedTx && (
             <div

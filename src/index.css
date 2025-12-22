@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+/* -------- EXTENSION FIXES -------- */
+html,
+body {
+  width: 360px;
+  height: 600px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Prevent huge SVGs */
+img,
+svg {
+  max-width: 20px;
+  height: 20px;
+}
