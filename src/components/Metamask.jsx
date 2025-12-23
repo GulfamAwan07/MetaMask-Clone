@@ -55,6 +55,8 @@ function Metamask() {
   const [accDropDown, setAccDropDown] = useState(false);
   const [balances, setBalances] = useState({});
 
+  const [isBalanceFetched, setIsBalanceFetched] = useState(false);
+
   const [toggle, setToggle] = useState(false);
 
   const showToggle = () => {
@@ -78,16 +80,12 @@ function Metamask() {
 
   const fetchCurrentBalance = useCallback(
     async (address, chain) => {
-      if (!address) {
-        console.log("No address provided for balance fetch");
-        return;
-      }
+      if (!address) return;
 
       const key = `${chain}:${activeAccount}`;
-      let balance = 0;
 
       try {
-        console.log(`Fetching ${chain} balance for address:`, address);
+        let balance = 0;
 
         if (chain === "Ethereum") {
           balance = await getEthBalance(address, currentProvider);
@@ -97,22 +95,26 @@ function Metamask() {
           balance = await getSolanaBalance(address);
         }
 
-        console.log(`Balance fetched for ${chain}:`, balance);
-
         setBalances((prev) => ({
           ...prev,
           [key]: balance,
         }));
+
+        setIsBalanceFetched(true);
       } catch (err) {
         console.error(`Error fetching ${chain} balance:`, err);
-        setBalances((prev) => ({
-          ...prev,
-          [key]: 0,
-        }));
+        setBalances((prev) => ({ ...prev, [key]: 0 }));
+        setIsBalanceFetched(true);
       }
     },
     [activeAccount, currentProvider]
   );
+
+  useEffect(() => {
+    setIsBalanceFetched(false);
+    const address = getAddress();
+    if (address) fetchCurrentBalance(address, currentChain);
+  }, [activeAccount, getAddress, fetchCurrentBalance, currentChain]);
 
   useEffect(() => {
     try {
@@ -822,7 +824,7 @@ function Metamask() {
           <div className="flex flex-col justify-center items-center mt-2 gap-1">
             <h1 className="text-4xl font-semibold text-black">
               <p>
-                {currentBalance ? currentBalance.toFixed(4) : "0.0000"}{" "}
+                {isBalanceFetched ? currentBalance.toFixed(4) : "0.0000"}{" "}
                 {currentChain === "Ethereum"
                   ? "ETH"
                   : currentChain === "Polygon"
@@ -991,7 +993,7 @@ function Metamask() {
                 </h1>
               </div>
 
-              <div className="flex mx-1 mt-1 flex-col ">
+              <div className="flex mx-5 mt-1 flex-col ">
                 <p className="test-sm text-gray-700">
                   No conversion rate available
                 </p>

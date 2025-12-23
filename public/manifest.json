@@ -2,12 +2,13 @@
   "manifest_version": 3,
   "name": "MetaMask-G",
   "icons": {
-    "16": "icon.png",
-    "32": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icons/icon4.png",
+    "32": "icons/icon4.png",
+    "64": "icons/icon4.png",
+    "128": "icons/icon4.png"
   },
   "version": "1.0.0",
+  "permissions" : ["storage"],
 
   "background": {
     "service_worker": "background.js",
@@ -15,6 +16,9 @@
   },
   "action": {
     "default_popup": "index.html",
-    "default_icon": "icon.png"
+    "default_icon": {
+      "16": "icons/icon1.png",
+      "32": "icons/icon2.png"
+    }
   }
 }
