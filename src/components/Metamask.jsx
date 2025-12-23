@@ -680,7 +680,7 @@ function Metamask() {
           <h1>Mask</h1>
         </div>
 
-        <div className="bg-[#FFFFFF] mt-4 w-full max-w-sm md:max-w-md shadow-lg rounded-lg">
+        <div className="bg-[#FFFFFF] mt-1 w-full max-w-sm md:max-w-md shadow-lg rounded-lg">
           <nav className="flex flex-row justify-between items-center p-4">
             <div className="flex flex-col justify-start relative">
               <div
@@ -697,7 +697,7 @@ function Metamask() {
                 />
               </div>
               {accDropDown && (
-                <div className="absolute top-full left-0 mt-2 w-80 max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
+                <div className="absolute top-full left-0  w-80 max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
                   {account.map((acc) => (
                     <div
                       key={acc.id}
