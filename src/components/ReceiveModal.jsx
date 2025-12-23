@@ -32,7 +32,7 @@ function ReceiveModal({
   };
 
   return (
-    <div className="absolute left-0 right-0 top-0 bg-gray-100 bg-opacity-50 flex justify-center items-center z-[100]">
+    <div className="absolute left-0 right-0 top-36 bg-gray-100 bg-opacity-50 flex justify-center items-center z-[100]">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Request Funds</h2>

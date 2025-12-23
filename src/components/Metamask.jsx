@@ -756,7 +756,7 @@ function Metamask() {
             <div className="flex items-center">
               <IoMenu
                 onClick={menuBar}
-                className="w-8 h-8 cursor-pointer relative text-gray-700"
+                className="w-10 h-10 hover:text-black cursor-pointer relative text-gray-700"
                 title={menu ? "Close Menu" : "open Menu"}
               />
             </div>

@@ -9,7 +9,7 @@ function SendModal({
   activeAccount,
 }) {
   return (
-    <div className="absolute left-0 right-0 top-0 bg-gray-100 bg-opacity-50 flex justify-center items-center z-[100]">
+    <div className="absolute left-0 right-0 top-36 bg-gray-100 bg-opacity-50 flex justify-center items-center z-[100]">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="flex justify-center text-2xl mx-[6vw] text-gray-700 font-bold items-center">
@@ -56,7 +56,7 @@ function SendModal({
 
         <button
           onClick={onSend}
-          className="mx-[6vw] cursor-pointer text-lg bg-gray-400 text-white font-bold rounded-full p-2  hover:bg-gray-700 transition duration-150"
+          className="flex justify-center items-center cursor-pointer text-lg bg-gray-400 text-white font-bold rounded-full p-2  hover:bg-gray-700 transition duration-150"
         >
           Confirm Send
         </button>
