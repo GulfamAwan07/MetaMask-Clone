@@ -55,6 +55,12 @@ function Metamask() {
   const [accDropDown, setAccDropDown] = useState(false);
   const [balances, setBalances] = useState({});
 
+  const [toggle, setToggle] = useState(false);
+
+  const showToggle = () => {
+    setToggle((prevState) => !prevState);
+  };
+
   const balanceRequestId = useRef(0);
   const currentBalance = balances[`${currentChain}:${activeAccount}`] || 0;
 
@@ -636,7 +642,7 @@ function Metamask() {
   );
 
   return (
-    <div>
+    <div className="relative">
       {openSelector && (
         <TokenSelector
           close={closeSelector}
@@ -724,21 +730,21 @@ function Metamask() {
                 </div>
               )}
 
-              <div className="flex flex-row ">
+              <div className="flex flex-row">
                 {displayTokens.map((token, index) => (
                   <div
                     key={token.symbol}
                     className={`
-                      w-5 h-5 rounded-full border-2 border-white bg-gray-100
-                      ${index > 0 ? "ml-[-8px]" : ""} 
-                      relative
-                    `}
-                    style={{ zIndex: index + 1 }}
+                       w-5 h-5 rounded-full border-2 border-white bg-gray-100
+                       ${index > 0 ? "-ml-2" : ""} 
+                       relative overflow-hidden
+                       `}
+                    style={{ zIndex: displayTokens.length - index }}
                   >
                     <img
                       src={token.logo}
                       alt={token.symbol}
-                      className="w-8 h-8 rounded-full shrink-0 object-contain"
+                      className="w-full h-full rounded-full object-cover"
                     />
                   </div>
                 ))}
@@ -874,7 +880,7 @@ function Metamask() {
               </button>
             </div>
           )}
-          <div className="flex flex-row justify-center items-center gap-6 mt-5 mb-4">
+          <div className="flex flex-row justify-center items-center gap-3 mx-1 mt-5 mb-4">
             <button className="flex flex-col rounded-2xl p-4 bg-gray-100 pr-6 hover:bg-gray-200 cursor-pointer">
               <TbCurrencyDollar className="w-5 h-5 text-gray-500 mx-2" />
               <h1 className="text-md font-semibold">Buy</h1>
@@ -938,8 +944,18 @@ function Metamask() {
                   {selectedItems ? selectedItems.symbol : "Select Token"}
                 </span>
               </div>
-
-              <IoIosArrowDown className="w-4 h-4 mt-1 text-gray-500" />
+              <button
+                onClick={showToggle}
+                className="p-1 hover:bg-gray-100 rounded-full"
+                title={toggle ? "TURN OFF" : "TURN ON"}
+                aria-label="Toggle Arrow"
+              >
+                <IoIosArrowDown
+                  className={`w-4 h-4 text-gray-500 transition-transform ${
+                    toggle ? "rotate-180" : "rotate-0"
+                  }`}
+                />
+              </button>
             </div>
 
             <div className="flex gap-4 cursor-pointer">
@@ -949,15 +965,15 @@ function Metamask() {
           </div>
 
           {showToken && (
-            <div className="mt-2 mx-2 mb-2 flex gap-8 ">
+            <div className="mt-2 mx-2 mb-2 flex gap-5 ">
               <div className="relative">
-                <div className=" flex justify-center items-center rounded-full bg-gray-200 w-12 h-12">
-                  <h1 className="text-2xl font-semibold  text-gray-700">
+                <div className=" flex  rounded-full bg-gray-200 w-12 h-12">
+                  <h1 className="text-2xl mx-3 mt-1.5 font-semibold   text-gray-700">
                     {currentChain.charAt(0)}
                   </h1>
                 </div>
-                <div className="flex items-center justify-center rounded-full absolute bottom-0 left-7 w-5 h-5 bg-white">
-                  <p>
+                <div className="flex items-center justify-center rounded-full absolute bottom-0.5 left-6 w-5 h-5 bg-white">
+                  <p className="bg-white rounded-full">
                     {currentChain === "Ethereum"
                       ? "S"
                       : "Solana"
@@ -970,12 +986,12 @@ function Metamask() {
               </div>
 
               <div>
-                <h1 className="font-semibold text-xl text-gray-700 mt-1">
+                <h1 className="font-bold text-lg text-gray-700 mt-1">
                   {currentChain.slice(0, 3).toUpperCase()}
                 </h1>
               </div>
 
-              <div className="flex sm:mx-5 md:mx-10 mt-1 flex-col ">
+              <div className="flex mx-1 mt-1 flex-col ">
                 <p className="test-sm text-gray-700">
                   No conversion rate available
                 </p>
