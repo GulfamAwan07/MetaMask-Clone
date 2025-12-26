@@ -1,4 +1,3 @@
-// public/background.js
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Metamask Extension Project Installed');

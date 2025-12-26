@@ -56,7 +56,7 @@ function SendModal({
 
         <button
           onClick={onSend}
-          className="flex justify-center items-center cursor-pointer text-lg bg-gray-400 text-white font-bold rounded-full p-2  hover:bg-gray-700 transition duration-150"
+          className="flex justify-center items-center overflow-hidden cursor-pointer text-lg bg-gray-400 text-white font-bold rounded-full p-2  hover:bg-gray-700 transition duration-150"
         >
           Confirm Send
         </button>

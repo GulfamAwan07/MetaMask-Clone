@@ -26,7 +26,7 @@ import { LuShieldQuestion } from "react-icons/lu";
 import { getPolygonBalance, executePolygonTransfer } from "./polygon";
 import bs58 from "bs58";
 import { Keypair, Connection } from "@solana/web3.js";
-
+import { useWallet } from "@solana/wallet-adapter-react";
 import {
   executeSolanaTransfer,
   getSolanaBalance,
@@ -39,6 +39,7 @@ function Metamask() {
   const [showToken, setShowToken] = useState(false);
   const [openSelector, setOpenSelector] = useState(false);
   const [selectedItems, setSelectedItems] = useState(tokenss[0]);
+  const wallet = useWallet();
 
   const Public_Address = "0x33570eB7525d6e9375FbDbE9BdB8f3437435f860";
   const SEPOLIA_RPC = import.meta.env.VITE_SEPOLIA_RPC_URL;
@@ -331,7 +332,7 @@ function Metamask() {
     } else if (currentChain === "Polygon") {
       result = await executePolygonTransfer(receiptAddress, amountFloat);
     } else if (currentChain === "Solana") {
-      result = await executeSolanaTransfer(receiptAddress, amountFloat);
+      result = await executeSolanaTransfer(receiptAddress, amountFloat, wallet);
     } else {
       toast.error("Unsupported chain");
       return;
@@ -837,7 +838,7 @@ function Metamask() {
 
           {incomingReceivedTx && (
             <div
-              className="bg-green-100 border-l-4 border-green-600 text-green-700 p-4 mx-4 mt-4 rounded-md flex justify-between items-center"
+              className="bg-green-100 w-96 flex flex-col border-l-4 border-green-600 text-green-700 p-4 mx-4 mt-4 rounded-md  justify-between items-center"
               role="alert"
             >
               <div>
