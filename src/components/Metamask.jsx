@@ -26,7 +26,7 @@ import { LuShieldQuestion } from "react-icons/lu";
 import { getPolygonBalance, executePolygonTransfer } from "./polygon";
 import bs58 from "bs58";
 import { Keypair, Connection } from "@solana/web3.js";
-import { useWallet } from "@solana/wallet-adapter-react";
+// import { useWallet } from "@solana/wallet-adapter-react";
 import {
   executeSolanaTransfer,
   getSolanaBalance,
@@ -39,7 +39,7 @@ function Metamask() {
   const [showToken, setShowToken] = useState(false);
   const [openSelector, setOpenSelector] = useState(false);
   const [selectedItems, setSelectedItems] = useState(tokenss[0]);
-  const wallet = useWallet();
+  // const wallet = useWallet();
 
   const Public_Address = "0x33570eB7525d6e9375FbDbE9BdB8f3437435f860";
   const SEPOLIA_RPC = import.meta.env.VITE_SEPOLIA_RPC_URL;
@@ -258,10 +258,8 @@ function Metamask() {
     const newName = `Solana Account ${newId}`;
 
     toast.info(
-      `Solana Account Created\nPublic Key: ${walletData.publicKey}\nSAVE PRIVATE KEY:\n${walletData.privateKey}`,
-      {
-        autoClose: false,
-      }
+      `Solana Account Created\nPublic Key:\n${walletData.publicKey}\n\nSAVE PRIVATE KEY:\n${walletData.privateKey}`,
+      { autoClose: false }
     );
 
     setAccount((prev) => [
@@ -270,11 +268,22 @@ function Metamask() {
         id: newId,
         name: newName,
         solAddress: walletData.publicKey,
+        solPrivateKey: walletData.privateKey,
       },
     ]);
 
     setActiveAccount(newName);
     setAccDropDown(false);
+  };
+
+  const getSolanaWalletObject = () => {
+    const acc = account.find((a) => a.name === activeAccount);
+    if (!acc || !acc.solPrivateKey) return null;
+
+    return {
+      publicKey: acc.solAddress,
+      privateKey: acc.solPrivateKey,
+    };
   };
 
   const addAccount = () => {
@@ -332,7 +341,18 @@ function Metamask() {
     } else if (currentChain === "Polygon") {
       result = await executePolygonTransfer(receiptAddress, amountFloat);
     } else if (currentChain === "Solana") {
-      result = await executeSolanaTransfer(receiptAddress, amountFloat, wallet);
+      const solWallet = getSolanaWalletObject();
+
+      if (!solWallet) {
+        toast.error("Solana wallet not found or private key missing");
+        return;
+      }
+
+      result = await executeSolanaTransfer(
+        receiptAddress,
+        amountFloat,
+        solWallet
+      );
     } else {
       toast.error("Unsupported chain");
       return;
@@ -498,7 +518,10 @@ function Metamask() {
       toast.success("Switched to Ethereum (Sepolia)!");
 
       setTimeout(() => {
-        const address = getAddress();
+        const address =
+          currentChain === "Solana"
+            ? acc.solAddress || null
+            : acc.ethAddress || null;
         console.log("Ethereum address:", address);
         if (address) {
           fetchCurrentBalance(address, "Ethereum");
@@ -698,7 +721,7 @@ function Metamask() {
                 />
               </div>
               {accDropDown && (
-                <div className="absolute top-full left-0  w-80 max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
+                <div className="absolute top-full left-0  w-80 max-h-66.25 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
                   {account.map((acc) => (
                     <div
                       key={acc.id}
@@ -763,7 +786,7 @@ function Metamask() {
             </div>
 
             {menu && (
-              <div className="flex flex-col gap-6 cursor-pointer absolute top-40 right-[30%] bg-white border rounded-2xl shadow-2xl border-gray-200 p-2 shadow-gray-200">
+              <div className="flex flex-col gap-2 cursor-pointer absolute top-40 right-[30%] bg-white border rounded-2xl shadow-2xl border-gray-200 p-2 shadow-gray-200">
                 <div className="flex gap-3 hover:bg-gray-100">
                   <MdNotificationsNone className="w-5 h-5 mt-1 text-gray-700" />
                   <h1 className="text-lg text-gray-700 font-semibold">
@@ -821,7 +844,7 @@ function Metamask() {
               </div>
             )}
           </nav>
-          <div className="border-b-1 border-gray-400 mx-4"></div>
+          <div className="border-b border-gray-400 mx-4"></div>
           <div className="flex flex-col justify-center items-center mt-2 gap-1">
             <h1 className="text-4xl font-semibold text-black">
               <p>
@@ -969,7 +992,7 @@ function Metamask() {
 
           {showToken && (
             <div className="mt-2 mx-2 mb-2 flex gap-5 ">
-              <div className="relative">
+              <div className="relative hidden">
                 <div className=" flex  rounded-full bg-gray-200 w-12 h-12">
                   <h1 className="text-2xl mx-3 mt-1.5 font-semibold   text-gray-700">
                     {currentChain.charAt(0)}
