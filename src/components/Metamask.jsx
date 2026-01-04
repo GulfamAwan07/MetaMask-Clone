@@ -992,7 +992,7 @@ function Metamask() {
 
           {showToken && (
             <div className="mt-2 mx-2 mb-2 flex gap-5 ">
-              <div className="relative hidden">
+              <div className="relative ">
                 <div className=" flex  rounded-full bg-gray-200 w-12 h-12">
                   <h1 className="text-2xl mx-3 mt-1.5 font-semibold   text-gray-700">
                     {currentChain.charAt(0)}
@@ -1017,7 +1017,7 @@ function Metamask() {
                 </h1>
               </div>
 
-              <div className="flex mx-5 mt-1 flex-col ">
+              <div className="flex mx-8 mt-1 flex-col ">
                 <p className="test-sm text-gray-700">
                   No conversion rate available
                 </p>
